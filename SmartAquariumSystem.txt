@@ -1,0 +1,169 @@
+from m5stack import *
+from m5ui import *
+from uiflow import *
+import wifiCfg
+import json
+
+import time
+from flow import ezdata
+import unit
+remoteInit()
+
+setScreenColor(0x0000ff)
+env3_0 = unit.get(unit.ENV3, unit.PORTA)
+angle_0 = unit.get(unit.ANGLE, unit.PORTB)
+pir_0 = unit.get(unit.PIR, unit.PORTB)
+ir_0 = unit.get(unit.IR_NEC, unit.PORTB)
+
+
+A = None
+B = None
+
+wifiCfg.autoConnect(lcdShow=False)
+
+titleLabel = M5Title(title="Smart Aquarium System", x=3, fgcolor=0xFFFFFF, bgcolor=0xff0000)
+wifiLabel = M5TextBox(8, 210, "WIFI", lcd.FONT_Default, 0x00ff00, rotate=0)
+tempLabel = M5TextBox(0, 40, "Temperature", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+pressureLabel = M5TextBox(0, 70, "Pressure", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+humidityLabel = M5TextBox(0, 100, "Humidity", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+motionLabel = M5TextBox(0, 130, "Motion", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+label0 = M5TextBox(120, 40, "label0", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+label1 = M5TextBox(120, 70, "label1", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+label2 = M5TextBox(120, 100, "label2", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+label3 = M5TextBox(120, 130, "label3", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+angleLabel = M5TextBox(0, 160, "Angle", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+label4 = M5TextBox(120, 160, "label4", lcd.FONT_Default, 0xFFFFFF, rotate=0)
+label5 = M5TextBox(248, 210, "Feed Fish", lcd.FONT_Default, 0xffffaa, rotate=0)
+
+import math
+
+
+# Describe this function...
+def logic():
+  global A, B
+  while True:
+    if wifiCfg.wlan_sta.isconnected():
+      wifiLabel.setText('Connected')
+      rgb.setColorAll(0x33ff33)
+    else:
+      wifiLabel.setText('Not Connected')
+      rgb.setColorAll(0xff0000)
+    label0.setText(str((str(round(env3_0.temperature)) + str('C'))))
+    label1.setText(str((str(round(env3_0.pressure)) + str('P'))))
+    label2.setText(str((str(round(env3_0.humidity)) + str('%H'))))
+    wait(0.1)
+    if round(env3_0.temperature) >= 32:
+      rgb.setColorAll(0xff0000)
+      speaker.tone(1800, 1)
+    else:
+      rgb.setColorAll(0x33ff33)
+    ezdata.setData('HL56Z1uIThEUYXEftq8sLZaPua73nfF2', 'Temperature', (env3_0.temperature))
+    wait(1)
+    if round(env3_0.humidity) < 45:
+      rgb.setColorAll(0xff0000)
+      speaker.tone(1800, 1)
+    else:
+      rgb.setColorAll(0x33ff33)
+    ezdata.setData('HL56Z1uIThEUYXEftq8sLZaPua73nfF2', 'Humidity', (env3_0.humidity))
+    wait(1)
+    if round(env3_0.pressure) < 95700:
+      rgb.setColorAll(0xff0000)
+      speaker.tone(1800, 1)
+    else:
+      rgb.setColorAll(0x33ff33)
+    ezdata.setData('HL56Z1uIThEUYXEftq8sLZaPua73nfF2', 'Pressure', (env3_0.pressure))
+    wait(1)
+    if (pir_0.state) == 1:
+      label3.setColor(0xff0000)
+      rgb.setColorAll(0xff0000)
+      label3.setText('Movement Detected')
+      ezdata.setData('HL56Z1uIThEUYXEftq8sLZaPua73nfF2', 'motion', 'Movement Detected')
+    else:
+      label3.setText('No Movement')
+      label3.setColor(0x33ff33)
+      rgb.setColorAll(0x33ff33)
+      ezdata.setData('HL56Z1uIThEUYXEftq8sLZaPua73nfF2', 'motion', 'No Movement')
+    wait(1)
+    if (angle_0.read()) <= 300:
+      label4.setColor(0xff0000)
+      label4.setText('LOW')
+      speaker.tone(1800, 1)
+    else:
+      if (angle_0.read()) >= 600:
+        label4.setText('HIGH')
+        label4.setColor(0x33ff33)
+      else:
+        label4.setText('MEDIUM')
+    ezdata.setData('HL56Z1uIThEUYXEftq8sLZaPua73nfF2', 'angle', (angle_0.read()))
+    wait(1)
+    wait_ms(2)
+
+# Describe this function...
+def sdcard():
+  global A, B
+  A = {'temperature':(env3_0.temperature),'humidity':(env3_0.humidity),'pressure':(env3_0.pressure),'motion':(pir_0.state),'angle':(angle_0.read())}
+  B = json.dumps(A)
+  with open('/sd/fishData.json', 'w+') as fs:
+    fs.write(str(B))
+
+
+def buttonC_wasPressed():
+  global A, B
+  label5.setText('Feeding Fish..')
+  pass
+btnC.wasPressed(buttonC_wasPressed)
+
+def buttonC_wasReleased():
+  global A, B
+  label5.setText('Stop')
+  pass
+btnC.wasReleased(buttonC_wasReleased)
+
+def buttonA_wasPressed():
+  global A, B
+  wifiCfg.autoConnect(lcdShow=False)
+  speaker.sing(440, 1/2)
+  pass
+btnA.wasPressed(buttonA_wasPressed)
+
+
+def _remote_Feed_Fish():
+  global A, B, env3_0, angle_0, pir_0, ir_0, logic, sdcard 
+  while True:
+    logic()
+    ir_0.txOn()
+    wait_ms(2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def button_3_callback():
+  global A, B, env3_0, angle_0, pir_0, ir_0, logic, sdcard 
+  label5.setText('Feeding Fish..')
+  label5.setColor(0x33ff33)
+
+def button_4_callback():
+  global A, B, env3_0, angle_0, pir_0, ir_0, logic, sdcard 
+  label5.setText('Stop')
+  label5.setColor(0xff0000)
+
+titleLabel.setTitle('Smart Aquarium System')
+while True:
+  logic()
+  sdcard()
+  wait_ms(2)
+
+# Describe this function...
